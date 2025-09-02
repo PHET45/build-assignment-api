@@ -46,6 +46,99 @@ app.post("/assignments", async (req, res) => {
   });
 });
 
+app.get("/assignments", async (req, res) => {
+  let results;
+  try {
+    results = await connectionPool.query("SELECT * FROM assignments");
+  } catch {
+    return res.status(500).json({
+      message: "Server could not get assignments because database connection",
+    });
+  }
+  return res.status(200).json({
+    data: results.rows, 
+  });
+})
+
+app.get("/assignments/:assignmentId", async (req, res) => {
+  const postId = req.params.assignmentId;
+
+  let results;
+  try {
+    results = await connectionPool.query("SELECT * FROM assignments WHERE assignment_id=$1", [postId]);
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server could not get assignment because database connection",
+    });
+  }
+  if (!results.rows[0]) {
+    return res.status(404).json({
+      message: "Server could not find a requested assignment",
+    });
+  }
+  return res.status(200).json({
+    data: results.rows[0],
+  });
+})
+
+app.put("/assignments/:assignmentId", async (req, res) => {
+  const postId = req.params.assignmentId;
+  const updatedPost = {...req.body , updated_at: new Date()};
+
+  let results;
+  try {
+      results = await connectionPool.query(
+      `UPDATE assignments
+      set title=$2, content=$3, category=$4, updated_at=$5
+      WHERE assignment_id=$1 RETURNING *`,
+      [
+        postId,
+        updatedPost.title,
+        updatedPost.content,
+        updatedPost.category,
+        updatedPost.updated_at,
+      ]
+    )
+  }catch { 
+    return res.status(500).json({
+      message: "Server could not update assignment because database connection",
+    });
+  }
+  if (!results.rows[0]) {
+    return res.status(404).json({
+      message: "Server could not find a requested assignment to update",
+    });
+  }
+  return res.status(200).json({
+    message: "Updated assignment successfully",
+  });
+});
+
+app.delete("/assignments/:assignmentId", async (req, res) => {
+  const postId = req.params.assignmentId;
+
+  let results;
+  try{
+    results = await connectionPool.query(
+      "DELETE FROM assignments WHERE assignment_id=$1 RETURNING *",
+      [postId]
+    )
+  }catch {
+    return res.status(500).json({
+      message: "Server could not delete assignment because database connection",
+    });
+  }
+  if (!results.rows[0]) {
+    return res.status(404).json({
+      message: "Server could not find a requested assignment to delete",
+    });
+  } else {
+    return res.status(200).json({
+      message: "Deleted assignment successfully",
+    });
+  }
+})
+
 app.listen(port, () => {
   console.log(`Server is running at ${port}`);
 });
